@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ข้อมูลการสมัครเรียน มหาวิทยาลัยราชภัฏบุรีรัมย์ | Admission Analytics Dashboard</title>
+  <meta name="description" content="ระบบวิเคราะห์และติดตามข้อมูลการรับสมัครนักศึกษา มหาวิทยาลัยราชภัฏบุรีรัมย์ แบบ Real-time ดึงข้อมูลตรงจากฐานข้อมูล">
+  
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f5ff',
+              100: '#e0ebff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md transition-opacity duration-300">
+    <div class="relative flex items-center justify-center mb-6">
+      <div class="absolute w-20 h-20 border-4 border-indigo-500/20 rounded-full animate-ping"></div>
+      <div class="w-16 h-16 border-4 border-t-indigo-500 border-r-purple-500 border-b-pink-500 border-l-transparent rounded-full animate-spin"></div>
+      <i class="fa-solid fa-graduation-cap text-2xl text-indigo-400 absolute animate-pulse"></i>
+    </div>
+    <h2 class="text-xl font-semibold text-white tracking-wide mb-2 animate-pulse">กำลังเชื่อมต่อข้อมูล Real-time</h2>
+    <p class="text-slate-400 text-sm flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+      ดึงข้อมูลตรงจาก Google Sheets CSV (มหาวิทยาลัยราชภัฏบุรีรัมย์)
+    </p>
+  </div>
+
+  <!-- Error Toast -->
+  <div id="errorToast" class="fixed bottom-6 right-6 z-50 hidden max-w-md bg-rose-500/90 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md border border-rose-400/50 flex items-start gap-3 transition-all transform translate-y-2">
+    <i class="fa-solid fa-triangle-exclamation text-2xl mt-0.5"></i>
+    <div class="flex-1">
+      <h4 class="font-bold">เกิดข้อผิดพลาดในการดึงข้อมูล</h4>
+      <p id="errorMessage" class="text-sm text-rose-100 mt-1">ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้</p>
+    </div>
+    <button onclick="hideError()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <!-- Header / Navigation -->
+  <header class="glass-header sticky top-0 z-40 px-4 lg:px-8 py-3.5 transition-all">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 shrink-0 animate-float">
+          <i class="fa-solid fa-building-columns text-2xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
+              BRU Analytics
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+              Live 100%
+            </span>
+          </div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white mt-0.5">
+            ข้อมูลการสมัครเรียน <span class="text-gradient-primary">มหาวิทยาลัยราชภัฏบุรีรัมย์</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Action Controls -->
+      <div class="flex items-center justify-between sm:justify-end gap-3">
+        <!-- Last Updated Info -->
+        <div class="text-right hidden md:block">
+          <p class="text-xs text-slate-400 dark:text-slate-500">อัปเดตข้อมูลล่าสุด</p>
+          <p id="lastUpdatedTime" class="text-xs font-medium text-slate-700 dark:text-slate-300">กำลังโหลด...</p>
+        </div>
+
+        <!-- Refresh Button -->
+        <button id="refreshBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium transition shadow-sm active:scale-95" title="รีเฟรชข้อมูล">
+          <i id="refreshIcon" class="fa-solid fa-rotate-right text-indigo-500"></i>
+          <span class="hidden sm:inline">รีเฟรช</span>
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button id="themeToggle" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition shadow-sm active:scale-95" title="เปลี่ยนโหมดสี">
+          <i id="themeIcon" class="fa-solid fa-sun text-amber-400 text-lg"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+    <!-- Interactive Filter Section -->
+    <section class="glass-card rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/60 dark:border-slate-800/60">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-filter text-indigo-500"></i>
+          <h2 class="font-semibold text-slate-800 dark:text-slate-200">ตัวกรองวิเคราะห์ข้อมูล (Interactive Filters)</h2>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>เลือกปรับเปลี่ยนเงื่อนไขเพื่อดูสถิติเชิงลึกแบบ Real-time</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <!-- Academic Year Filter -->
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+            <i class="fa-regular fa-calendar text-indigo-400"></i> ปีการศึกษา
+          </label>
+          <select id="yearFilter" class="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition">
+            <option value="all">ทั้งหมดทุกปีการศึกษา (2564 - 2567)</option>
+          </select>
+        </div>
+
+        <!-- Faculty Filter -->
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-school text-purple-400"></i> คณะ / หน่วยงาน
+          </label>
+          <select id="facultyFilter" class="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition">
+            <option value="all">ทั้งหมดทุกคณะ</option>
+          </select>
+        </div>
+
+        <!-- Admission Type Filter -->
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-ticket text-pink-400"></i> ประเภทการสมัคร
+          </label>
+          <select id="typeFilter" class="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition">
+            <option value="all">ทั้งหมดทุกประเภท</option>
+            <option value="Admission">Admission (รับตรง/แอดมิชชัน)</option>
+            <option value="Quota">Quota (โควตา)</option>
+          </select>
+        </div>
+
+        <!-- Search Input -->
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-magnifying-glass text-emerald-400"></i> ค้นหาชื่อคณะ
+          </label>
+          <div class="relative">
+            <input type="text" id="searchInput" placeholder="พิมพ์ชื่อคณะที่ต้องการ..." class="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition">
+            <i class="fa-solid fa-search absolute left-3 top-2.5 text-xs text-slate-400"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Filter Status & Reset -->
+      <div class="mt-4 pt-3 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-500 dark:text-slate-400">ผลการกรอง: พบข้อมูล</span>
+          <span id="filteredCountBadge" class="font-bold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">0 รายการ</span>
+        </div>
+        <button id="resetFiltersBtn" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium flex items-center gap-1.5 py-1 px-2.5 rounded-lg hover:bg-indigo-500/10 transition">
+          <i class="fa-solid fa-rotate-left"></i> ล้างตัวกรองทั้งหมด
+        </button>
+      </div>
+    </section>
+
+    <!-- KPI Summary Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      
+      <!-- Card 1: Total Applicants -->
+      <div class="glass-card rounded-2xl p-5 relative overflow-hidden group hover:border-indigo-500/50 transition duration-300">
+        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition duration-500"></div>
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ยอดผู้สมัครรวมทั้งหมด</p>
+            <h3 id="kpiApplicants" class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">0</h3>
+            <p class="text-xs text-indigo-600 dark:text-indigo-400 mt-2 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-users text-xs"></i> สะสมทุกรอบการสมัคร
+            </p>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition duration-300 shadow-inner">
+            <i class="fa-solid fa-user-plus"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Total Admitted -->
+      <div class="glass-card rounded-2xl p-5 relative overflow-hidden group hover:border-emerald-500/50 transition duration-300">
+        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition duration-500"></div>
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ผู้ผ่านการคัดเลือก</p>
+            <h3 id="kpiAdmitted" class="text-3xl sm:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2 tracking-tight">0</h3>
+            <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-2 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-circle-check text-xs"></i> สิทธิ์เข้าศึกษาต่อ
+            </p>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition duration-300 shadow-inner">
+            <i class="fa-solid fa-user-check"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Overall Pass Rate (%) -->
+      <div class="glass-card rounded-2xl p-5 relative overflow-hidden group hover:border-purple-500/50 transition duration-300">
+        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition duration-500"></div>
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">อัตราการผ่านคัดเลือกเฉลี่ย</p>
+            <div class="flex items-baseline gap-1 mt-2">
+              <h3 id="kpiPassRate" class="text-3xl sm:text-4xl font-extrabold text-purple-600 dark:text-purple-400 tracking-tight">0</h3>
+              <span class="text-xl font-bold text-purple-600 dark:text-purple-400">%</span>
+            </div>
+            <!-- Progress bar -->
+            <div class="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+              <div id="kpiPassRateBar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition duration-300 shadow-inner">
+            <i class="fa-solid fa-chart-pie"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Total Rejected -->
+      <div class="glass-card rounded-2xl p-5 relative overflow-hidden group hover:border-rose-500/50 transition duration-300">
+        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition duration-500"></div>
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">จำนวนผู้ไม่ผ่านเกณฑ์</p>
+            <h3 id="kpiRejected" class="text-3xl sm:text-4xl font-extrabold text-rose-500 dark:text-rose-400 mt-2 tracking-tight">0</h3>
+            <p class="text-xs text-rose-500 dark:text-rose-400 mt-2 font-medium flex items-center gap-1">
+              <i class="fa-solid fa-user-xmark text-xs"></i> ยังไม่ผ่านรอบการประเมิน
+            </p>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-rose-500 dark:text-rose-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition duration-300 shadow-inner">
+            <i class="fa-solid fa-user-minus"></i>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Charts Grid Section -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Chart 1: Yearly Trend (8 Cols) -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-8 flex flex-col justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-line text-indigo-500"></i>
+              แนวโน้มยอดผู้สมัครและผู้ผ่านการคัดเลือกรายปี
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">เปรียบเทียบสถิติตั้งแต่ปีการศึกษา 2564 - 2567</p>
+          </div>
+          <div class="flex items-center gap-3 text-xs font-medium">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-indigo-500 inline-block"></span> ผู้สมัคร</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> ผู้ผ่าน</span>
+          </div>
+        </div>
+        <div class="chart-container h-72 sm:h-80 w-full">
+          <canvas id="yearlyTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Admission vs Quota Share (4 Cols) -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-4 flex flex-col justify-between">
+        <div>
+          <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-chart-donut text-purple-500"></i>
+            สัดส่วนผู้สมัครตามประเภท
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">เปรียบเทียบระหว่าง Admission และ Quota</p>
+        </div>
+        <div class="chart-container h-64 sm:h-72 w-full flex items-center justify-center my-auto">
+          <canvas id="typeShareChart"></canvas>
+        </div>
+        <div id="typeShareLegend" class="grid grid-cols-2 gap-2 pt-3 border-t border-slate-200/50 dark:border-slate-800/50 text-center text-xs">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Chart 3: Applicants by Faculty (6 Cols) -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-6 flex flex-col justify-between">
+        <div>
+          <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-chart-bar text-pink-500"></i>
+            จำนวนผู้สมัครแยกตามคณะ
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">จัดอันดับคณะที่มีความสนใจสูงที่สุด</p>
+        </div>
+        <div class="chart-container h-80 sm:h-96 w-full mt-4">
+          <canvas id="facultyApplicantsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 4: Pass Rate by Faculty (6 Cols) -->
+      <div class="glass-card rounded-2xl p-5 lg:col-span-6 flex flex-col justify-between">
+        <div>
+          <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-award text-amber-500"></i>
+            อัตราการสอบผ่านแต่ละคณะ (%)
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">ร้อยละของผู้ผ่านการคัดเลือกเทียบกับยอดผู้สมัครในคณะ</p>
+        </div>
+        <div class="chart-container h-80 sm:h-96 w-full mt-4">
+          <canvas id="facultyPassRateChart"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Detailed Data Table Section -->
+    <section class="glass-card rounded-2xl p-5 space-y-4">
+      
+      <!-- Table Header Controls -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200/60 dark:border-slate-800/60">
+        <div>
+          <h3 class="font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-table-list text-emerald-500"></i>
+            ตารางข้อมูลเชิงลึก (Detailed Admission Records)
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">แสดงรายการข้อมูลตามเงื่อนไขที่เลือก สามารถคลิกหัวตารางเพื่อเรียงลำดับ</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            แสดง:
+            <select id="pageSizeSelect" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-slate-200 focus:outline-none">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            แถว
+          </label>
+        </div>
+      </div>
+
+      <!-- Responsive Table -->
+      <div class="overflow-x-auto rounded-xl border border-slate-200/60 dark:border-slate-800/60">
+        <table class="w-full text-left border-collapse data-table text-sm">
+          <thead>
+            <tr class="bg-slate-100/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider">
+              <th class="py-3.5 px-4 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition" onclick="sortTable('ปีการศึกษา')">
+                <div class="flex items-center justify-between">
+                  <span>ปีการศึกษา</span>
+                  <i class="fa-solid fa-sort text-slate-400"></i>
+                </div>
+              </th>
+              <th class="py-3.5 px-4 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition" onclick="sortTable('ชื่อคณะ')">
+                <div class="flex items-center justify-between">
+                  <span>คณะ / หน่วยงาน</span>
+                  <i class="fa-solid fa-sort text-slate-400"></i>
+                </div>
+              </th>
+              <th class="py-3.5 px-4 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition" onclick="sortTable('ประเภทการสมัคร')">
+                <div class="flex items-center justify-between">
+                  <span>ประเภท</span>
+                  <i class="fa-solid fa-sort text-slate-400"></i>
+                </div>
+              </th>
+              <th class="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition" onclick="sortTable('จำนวนผู้สมัคร')">
+                <div class="flex items-center justify-end gap-1">
+                  <span>ผู้สมัคร</span>
+                  <i class="fa-solid fa-sort text-slate-400"></i>
+                </div>
+              </th>
+              <th class="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition" onclick="sortTable('จำนวนผู้ผ่าน')">
+                <div class="flex items-center justify-end gap-1">
+                  <span>ผู้ผ่าน</span>
+                  <i class="fa-solid fa-sort text-slate-400"></i>
+                </div>
+              </th>
+              <th class="py-3.5 px-4 text-center cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition" onclick="sortTable('เปอร์เซ็นต์การผ่าน (%)')">
+                <div class="flex items-center justify-center gap-1">
+                  <span>อัตราการผ่าน (%)</span>
+                  <i class="fa-solid fa-sort text-slate-400"></i>
+                </div>
+              </th>
+              <th class="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition" onclick="sortTable('จำนวนผู้ไม่ผ่าน')">
+                <div class="flex items-center justify-end gap-1">
+                  <span>ไม่ผ่าน</span>
+                  <i class="fa-solid fa-sort text-slate-400"></i>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-200/50 dark:divide-slate-800/50 text-slate-800 dark:text-slate-200">
+            <!-- Dynamically injected rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs text-slate-500 dark:text-slate-400">
+        <div id="pageInfo">แสดง 0 ถึง 0 จากทั้งหมด 0 รายการ</div>
+        <div class="flex items-center gap-1.5 self-end sm:self-auto">
+          <button id="prevPageBtn" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium">
+            <i class="fa-solid fa-chevron-left mr-1"></i> ก่อนหน้า
+          </button>
+          <span id="pageNumberBadge" class="px-3 py-1.5 rounded-lg bg-indigo-500 text-white font-bold">1</span>
+          <button id="nextPageBtn" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium">
+            ถัดไป <i class="fa-solid fa-chevron-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-12 border-t border-slate-200/80 dark:border-slate-800/80 py-6 px-4 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-100/50 dark:bg-slate-900/30">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-graduation-cap text-indigo-500 text-base"></i>
+        <span>ระบบสถิติการรับสมัครนักศึกษา มหาวิทยาลัยราชภัฏบุรีรัมย์ (Buriram Rajabhat University)</span>
+      </div>
+      <div>
+        <span>Powered by <strong class="text-slate-700 dark:text-slate-300">HTML5 • Tailwind CSS • Chart.js</strong> • Real-time Fetch API</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- External Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
