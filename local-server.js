@@ -63,7 +63,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Static File Server (serves index.html, styles.css, app.js)
+  // Static File Server (serves index.html, styles.css, main.js)
   let filePath = '.' + req.url;
   if (filePath === './') {
     filePath = './index.html';

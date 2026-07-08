@@ -12,7 +12,7 @@
 ## ✨ คุณสมบัติเด่น (Features)
 
 * 📡 **Real-time 100% Fetch API**: ดึงข้อมูลสดจาก Google Sheets CSV ทุกครั้งที่เปิดหน้าเว็บ พร้อมสถานะ Live Connection
-* 🚀 **Node.js Backend Proxy (`server.js`)**: แก้ปัญหา CORS และข้อจำกัดความปลอดภัยของเบราว์เซอร์อย่างสมบูรณ์แบบโดยไม่ต้องใช้ external dependencies (ใช้ built-in `http`, `https`, `fs`)
+* 🚀 **Node.js Backend Proxy (`local-server.js`)**: แก้ปัญหา CORS และข้อจำกัดความปลอดภัยของเบราว์เซอร์อย่างสมบูรณ์แบบโดยไม่ต้องใช้ external dependencies (ใช้ built-in `http`, `https`, `fs`)
 * 🌓 **Dark / Light Theme Toggle**: รองรับโหมดมืด (Dark Slate & Neon Glow) และโหมดสว่าง (Light Theme) สไตล์ Modern Glassmorphism
 * 🔍 **Interactive Filters**: ตัวกรองข้อมูลแบบเรียลไทม์ (ปีการศึกษา, คณะ/หน่วยงาน, ประเภทการสมัคร, ช่องค้นหาชื่อคณะ)
 * 📊 **4 กราฟวิเคราะห์ด้วย Chart.js**:
@@ -32,7 +32,7 @@
 1. เปิด Terminal หรือ Command Prompt ในโฟลเดอร์นี้
 2. รันคำสั่งเปิดเซิร์ฟเวอร์ (ไม่ต้องติดตั้ง npm install ใดๆ เพิ่ม):
    ```bash
-   node server.js
+   node local-server.js
    ```
 3. เปิดเว็บเบราว์เซอร์ไปที่:
    👉 **`http://localhost:3001`**
