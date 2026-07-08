@@ -133,7 +133,7 @@ async function fetchData() {
 
   let csvText = null;
 
-  // 2. ลองดึงข้อมูลตรงจาก Google Sheets (จะสำเร็จเมื่อเปิดผ่าน Web Server / http://)
+  // 1. ดึงข้อมูลตรงจาก Google Sheets (ทำงานได้สมบูรณ์แบบบน Cloud Vercel, GitHub Pages หรือ Web Server)
   if (!csvText) {
     try {
       const response = await fetch(CSV_URL, { cache: 'no-store' });
@@ -144,11 +144,11 @@ async function fetchData() {
         }
       }
     } catch (err) {
-      console.warn('Direct fetch failed (likely file:// CORS restriction):', err);
+      console.warn('Direct fetch failed:', err);
     }
   }
 
-  // 3. หากเปิดผ่าน file:// แล้วติด CORS ให้ลองผ่าน JSON Proxy (allorigins /get) ที่รองรับ Origin: null
+  // 2. ระบบสำรอง: หากเปิดไฟล์ตรงในเครื่อง (file://) ให้ดึงผ่าน JSON Proxy (allorigins /get)
   if (!csvText) {
     try {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(CSV_URL)}`;
@@ -164,7 +164,7 @@ async function fetchData() {
     }
   }
 
-  // 4. หากยังไม่สำเร็จ ให้ลองผ่าน proxy อื่นๆ
+  // 3. ระบบสำรองชั้นที่ 2: ดึงผ่าน Public CORS Proxies อื่นๆ
   if (!csvText) {
     const backupProxies = [
       `https://corsproxy.io/?${encodeURIComponent(CSV_URL)}`,
@@ -188,7 +188,7 @@ async function fetchData() {
   }
 
   if (!csvText) {
-    showError('ไม่สามารถดึงข้อมูลได้ กรุณารันคำสั่ง node server.js ใน Terminal หรือคลิกอนุมัติคำสั่งเพื่อเปิดใช้งาน Node.js Backend');
+    showError('ไม่สามารถดึงข้อมูลจาก Google Sheets ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและกดรีเฟรชหน้าเว็บอีกครั้ง');
     finishLoading();
     return;
   }
