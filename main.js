@@ -125,36 +125,13 @@ function setupEventListeners() {
   });
 }
 
-// Fetch Real-time Data via Fetch API (prioritizing Node.js Backend Proxy to eliminate CORS)
+// Fetch Real-time Data via Fetch API (100% Client-Side Static Dashboard)
 async function fetchData() {
   loadingOverlay.classList.remove('hidden');
   loadingOverlay.classList.add('flex');
   errorToast.classList.add('hidden');
 
   let csvText = null;
-
-  // 1. ลองดึงข้อมูลจาก Node.js Backend Proxy (/api/admission-data หรือ Localhost:3001 / 3000)
-  const nodeEndpoints = [
-    '/api/admission-data',
-    'http://localhost:3001/api/admission-data',
-    'http://localhost:3000/api/admission-data'
-  ];
-
-  for (const endpoint of nodeEndpoints) {
-    try {
-      const response = await fetch(endpoint, { cache: 'no-store' });
-      if (response.ok) {
-        const text = await response.text();
-        if (text && text.includes('ปีการศึกษา')) {
-          csvText = text;
-          console.log(`✅ Loaded CSV via Node.js backend: ${endpoint}`);
-          break;
-        }
-      }
-    } catch (err) {
-      console.warn(`Node backend not reachable at ${endpoint}:`, err.message);
-    }
-  }
 
   // 2. ลองดึงข้อมูลตรงจาก Google Sheets (จะสำเร็จเมื่อเปิดผ่าน Web Server / http://)
   if (!csvText) {

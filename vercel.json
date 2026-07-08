@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/api/admission-data", "destination": "/api/admission-data.js" },
-    { "source": "/api/data", "destination": "/api/admission-data.js" }
-  ]
-}
